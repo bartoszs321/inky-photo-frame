@@ -28,6 +28,8 @@ Change COLOR_MODE setting (line 44) to choose color handling:
 """
 import io
 import os
+from uuid import UUID
+
 # Set environment variable to skip GPIO check
 os.environ['INKY_SKIP_GPIO_CHECK'] = '1'
 import json
@@ -160,7 +162,7 @@ class ImmichApiManager:
         try:
             logging.info(f'🎞️ Fetching asset list from Immich album: {self._display_album_id}')
 
-            album_info = self._albums_api.get_album_info(self._display_album_id, without_assets=False)
+            album_info = self._albums_api.get_album_info(UUID(self._display_album_id), without_assets=False)
 
             album_asset_ids = set([a.id for a in album_info.assets])
             new_asset_ids = album_asset_ids.difference(self._downloaded_images)
@@ -173,7 +175,7 @@ class ImmichApiManager:
                 image_path.unlink()
 
             for asset_id in new_asset_ids:
-                photo_bytes = self._asset_api.view_asset(asset_id, size=immich_api_client.AssetMediaSize.PREVIEW)
+                photo_bytes = self._asset_api.view_asset(UUID(asset_id), size=immich_api_client.AssetMediaSize.PREVIEW)
 
                 image = Image.open(io.BytesIO(photo_bytes))
                 image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
