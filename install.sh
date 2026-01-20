@@ -238,8 +238,8 @@ sudo chmod 644 "$PASSWORD_FILE"
 print_status "Credentials saved to $PASSWORD_FILE"
 
 read -p "Enter Immich url: " immich_url
-read -p "Enter Immich api_key" immich_api_key
-read -p "Enter Immich album id for syncing" immich_album_id
+read -p "Enter Immich api_key: " immich_api_key
+read -p "Enter Immich album id for syncing: " immich_album_id
 echo "$immich_url" | sudo tee "$IMMICH_CONFIG_FILE" > /dev/null
 echo "$immich_api_key" | sudo tee -a "$IMMICH_CONFIG_FILE" > /dev/null
 echo "$immich_album_id" | sudo tee -a "$IMMICH_CONFIG_FILE" > /dev/null
