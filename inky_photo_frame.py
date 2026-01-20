@@ -150,8 +150,8 @@ class ImmichApiManager:
         try:
             cred_file = Path("/home/pi/.immich_config")
             if cred_file.exists():
-                lines = cred_file.read_text().strip()
-                if len(lines) >= 2:
+                lines = cred_file.read_text().strip().split('\n')
+                if len(lines) >= 3:
                     return lines[0], lines[1], lines[2]  # host_addr, api_key, album_id
         except Exception as e:
             logging.warning(f"Could not read credentials file: {e}")
