@@ -122,6 +122,8 @@ class ImmichApiManager:
     _downloaded_images = None
 
     def __init__(self):
+        logging.info('🎞️ Starting Immich API Manager')
+
         host_url, api_key, album_id = self.get_immich_config()
         self._display_album_id = album_id
 
@@ -135,7 +137,11 @@ class ImmichApiManager:
         # list all images inside immich dir to get uuids
         image_files = [f for f in listdir(IMMICH_PHOTOS_DIR) if isfile(join(IMMICH_PHOTOS_DIR, f)) and f.endswith('.jpg')]
 
+        logging.info(f'🎞️ Found {len(image_files)} existing images')
+
         self._downloaded_images = set(image_files)
+        logging.info('🎞️ Started Immich API Manager')
+
 
     def get_immich_config(self):
         """Read api_key from credentials file"""
@@ -152,11 +158,15 @@ class ImmichApiManager:
 
     def update_downloaded_assets(self):
         try:
+            logging.info(f'🎞️ Fetching asset list from Immich album: {self._display_album_id}')
+
             album_info = self._albums_api.get_album_info(self._display_album_id, without_assets=False)
 
             album_asset_ids = set([a.id for a in album_info.assets])
             new_asset_ids = album_asset_ids.difference(self._downloaded_images)
             deleted_assets_ids = self._downloaded_images.difference(album_asset_ids)
+            logging.info(f'🎞️ Found {len(new_asset_ids)} assets to download')
+            logging.info(f'🎞️ Found {len(deleted_assets_ids)} assets to delete')
 
             for deleted_id in deleted_assets_ids:
                 image_path = IMMICH_PHOTOS_DIR.joinpath(deleted_id + ".jpg")
@@ -168,6 +178,8 @@ class ImmichApiManager:
                 image = Image.open(io.BytesIO(photo_bytes))
                 image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
                 image.save(image_path)
+            logging.info(f'🎞️ Asset update complete')
+
         except Exception as e:
             logging.error(e)
 
@@ -400,6 +412,9 @@ class PhotoHandler(FileSystemEventHandler):
 
 class InkyPhotoFrame:
     def __init__(self):
+        # Immich api manager
+        self.immich_manager = ImmichApiManager()
+
         # Use DisplayManager singleton for robust GPIO/SPI handling
         self.display_manager = DisplayManager()
         self.display = self.display_manager.initialize()
@@ -690,6 +705,9 @@ class InkyPhotoFrame:
     def refresh_pending_list(self):
         """Update pending list with new photos"""
         with self.lock:
+            # Check if new photos available in selected immich album
+            self.immich_manager.update_downloaded_assets()
+
             all_photos = self.get_all_photos()
 
             # Remove deleted photos from history
@@ -1073,12 +1091,15 @@ class InkyPhotoFrame:
             return True
 
         # Parse last change time
-        last_change = datetime.fromisoformat(self.history['last_change'])
+        last_change: datetime = datetime.fromisoformat(self.history['last_change'])
 
         # Check if it's past CHANGE_HOUR and we haven't changed today
-        if now.hour >= CHANGE_HOUR and last_change.date() < now.date():
-            return True
+        # if now.hour >= CHANGE_HOUR and last_change.date() < now.date():
+        #     return True
 
+        # Every 2 hours after 5 am?
+        if now.hour >= CHANGE_HOUR and last_change <= now - timedelta(hours=2):
+            return True
         return False
 
     def display_current_or_change(self):
@@ -1119,9 +1140,6 @@ class InkyPhotoFrame:
         observer.start()
         logging.info('📸 File watcher started - new photos will display immediately!')
 
-        # Setup immich api handler
-        immich_manager = ImmichApiManager()
-
         try:
             # Main loop
             while True:
@@ -1137,9 +1155,6 @@ class InkyPhotoFrame:
 
                 # Periodic maintenance every hour
                 if datetime.now().minute == 0:
-                    # Check if new photos available in selected immich album
-                    immich_manager.update_downloaded_assets()
-
                     # Refresh pending list
                     self.refresh_pending_list()
 
