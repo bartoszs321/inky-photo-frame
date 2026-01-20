@@ -171,7 +171,7 @@ FILES_TO_DOWNLOAD=(
 # Always download from GitHub for consistency
 for file in "${FILES_TO_DOWNLOAD[@]}"; do
     print_info "Downloading $file..."
-    curl -sSL -o $INSTALL_DIR/$file https://raw.githubusercontent.com/mehdi7129/inky-photo-frame/main/$file
+    curl -sSL -o $INSTALL_DIR/$file https://raw.githubusercontent.com/bartoszs321/inky-photo-frame/feat/immich-album-sync/$file
     if [ $? -ne 0 ]; then
         print_error "Failed to download $file"
         exit 1
