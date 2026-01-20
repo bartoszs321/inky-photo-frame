@@ -140,7 +140,7 @@ class ImmichApiManager:
     def get_immich_config(self):
         """Read api_key from credentials file"""
         try:
-            cred_file = Path("/home/pi/.immich_credentials")
+            cred_file = Path("/home/pi/.immich_config")
             if cred_file.exists():
                 lines = cred_file.read_text().strip()
                 if len(lines) >= 2:

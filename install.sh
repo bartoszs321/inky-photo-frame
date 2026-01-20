@@ -22,6 +22,7 @@ SMB_SHARE_NAME="Images"
 PHOTOS_DIR="/home/pi/Images"
 INSTALL_DIR="/home/pi/inky-photo-frame"
 PASSWORD_FILE="/home/pi/.inky_credentials"
+IMMICH_CONFIG_FILE="/home/pi/.immich_config"
 
 # Colors for output
 RED='\033[0;31m'
@@ -235,6 +236,15 @@ echo "$USER_NAME" | sudo tee "$PASSWORD_FILE" > /dev/null
 echo "$USER_PASSWORD" | sudo tee -a "$PASSWORD_FILE" > /dev/null
 sudo chmod 644 "$PASSWORD_FILE"
 print_status "Credentials saved to $PASSWORD_FILE"
+
+read -p "Enter Immich url: " immich_url
+read -p "Enter Immich api_key" immich_api_key
+read -p "Enter Immich album id for syncing" immich_album_id
+echo "$immich_url" | sudo tee "$IMMICH_CONFIG_FILE" > /dev/null
+echo "$immich_api_key" | sudo tee -a "$IMMICH_CONFIG_FILE" > /dev/null
+echo "$immich_album_id" | sudo tee -a "$IMMICH_CONFIG_FILE" > /dev/null
+
+print_info "Saving immich configuration"
 
 # Restart Samba
 print_info "Restarting SMB service..."
