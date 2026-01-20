@@ -175,15 +175,17 @@ class ImmichApiManager:
                 image_path.unlink()
 
             for asset_id in new_asset_ids:
-                photo_bytes = self._asset_api.view_asset(UUID(asset_id), size=immich_api_client.AssetMediaSize.PREVIEW)
-
-                image = Image.open(io.BytesIO(photo_bytes))
-                image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
-                image.save(image_path)
+                try:
+                    photo_bytes = self._asset_api.view_asset(UUID(asset_id), size=immich_api_client.AssetMediaSize.PREVIEW)
+                    image = Image.open(io.BytesIO(photo_bytes))
+                    image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
+                    image.save(image_path)
+                except Exception as e:
+                    logging.error(f'An error occurred downloading asset {asset_id}', e)
             logging.info(f'🎞️ Asset update complete')
 
         except Exception as e:
-            logging.error(e)
+            logging.error(f'An error occurred refreshing assets in album {self._display_album_id}', e)
 
 
 # ============================================================================
