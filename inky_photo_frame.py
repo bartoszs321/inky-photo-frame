@@ -137,13 +137,12 @@ class ImmichApiManager:
         self._asset_api = immich_api_client.AssetsApi(self._api_client)
 
         # list all images inside immich dir to get uuids
-        image_files = [f for f in listdir(IMMICH_PHOTOS_DIR) if isfile(join(IMMICH_PHOTOS_DIR, f)) and f.endswith('.jpg')]
+        image_files = [Path(f).stem for f in listdir(IMMICH_PHOTOS_DIR) if isfile(join(IMMICH_PHOTOS_DIR, f)) and f.endswith('.jpg')]
 
         logging.info(f'🎞️ Found {len(image_files)} existing images')
 
         self._downloaded_images = set(image_files)
         logging.info('🎞️ Started Immich API Manager')
-
 
     def get_immich_config(self):
         """Read api_key from credentials file"""
