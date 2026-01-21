@@ -634,7 +634,7 @@ class InkyPhotoFrame:
                      '*.JPG', '*.JPEG', '*.PNG', '*.BMP']
         photos = []
         for ext in extensions:
-            photos.extend(PHOTOS_DIR.glob(ext))
+            photos.extend(PHOTOS_DIR.rglob(ext))
 
         # Convert to string paths
         return [str(p) for p in photos]
