@@ -79,7 +79,7 @@ VERSION = "1.1.7"
 # NOTE: COLOR_MODE is now dynamically changeable at runtime via buttons or methods
 COLOR_MODE = 'spectra_palette'  # Default color mode (can be changed at runtime)
 
-# Setting for displaying original photos with padding
+# Should photos be cropped or resized & padded instead
 SHOULD_CROP = False
 
 # Pimoroni defaults
@@ -412,8 +412,8 @@ class PhotoHandler(FileSystemEventHandler):
 
 class InkyPhotoFrame:
     def __init__(self):
-        # self.is_running = True
         self._should_quit = threading.Event()
+        self.register_cleanup_handlers()
 
         # Immich api manager
         self.immich_manager = ImmichApiManager()
@@ -1149,9 +1149,7 @@ class InkyPhotoFrame:
         try:
             # Main loop
             while not self._should_quit.is_set():
-                print("looping")
                 # Check every minute
-                # time_module.sleep(60)
                 self._should_quit.wait(60)
 
                 # Check for daily change
@@ -1198,18 +1196,19 @@ class InkyPhotoFrame:
         observer.join()
 
     def register_cleanup_handlers(self):
-        # Register cleanup handlers
+        logging.info('🧹 Registering cleanup handlers')
         atexit.register(self.dispose)
         signal.signal(signal.SIGTERM, lambda s, f: self.dispose())
         signal.signal(signal.SIGINT, lambda s, f: self.dispose())
 
     def dispose(self):
+        logging.info('🛑 Terminating InkyPhotoFrame.')
         with self.lock:
             self.display_manager.cleanup()
-            # self.is_running = False
             self._should_quit.set()
+            logging.info('🛑 InkyPhotoFrame loop has been terminated.')
+
 
 if __name__ == '__main__':
     frame = InkyPhotoFrame()
-    frame.register_cleanup_handlers()
     frame.run()
