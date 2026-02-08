@@ -66,7 +66,7 @@ PHOTOS_DIR = Path('/home/pi/Images')
 IMMICH_PHOTOS_DIR = PHOTOS_DIR.joinpath('immich')
 HISTORY_FILE = Path('/home/pi/.inky_history.json')
 COLOR_MODE_FILE = Path('/home/pi/.inky_color_mode.json')
-CHANGE_HOUR = 5  # Daily change hour (5AM)
+CHANGE_HOUR = 7  # Daily change hour (7AM)
 LOG_FILE = '/home/pi/inky_photo_frame.log'
 MAX_PHOTOS = 1000  # Maximum number of photos to keep (auto-delete oldest)
 VERSION = "1.1.7"
@@ -78,6 +78,9 @@ VERSION = "1.1.7"
 #   'warmth_boost'    - Aggressive RGB warmth adjustments
 # NOTE: COLOR_MODE is now dynamically changeable at runtime via buttons or methods
 COLOR_MODE = 'spectra_palette'  # Default color mode (can be changed at runtime)
+
+# Should photos be cropped or resized & padded instead
+SHOULD_CROP = False
 
 # Pimoroni defaults
 SATURATION = 0.5  # Pimoroni default saturation (matches official behavior)
@@ -186,7 +189,6 @@ class ImmichApiManager:
         except Exception as e:
             logging.error(f'An error occurred refreshing assets in album {self._display_album_id}', e)
 
-
 # ============================================================================
 # DISPLAY MANAGER - Singleton pattern for robust GPIO/SPI management
 # ============================================================================
@@ -222,11 +224,6 @@ class DisplayManager:
 
                 width, height = self._display.resolution
                 logging.info(f'✅ Display initialized: {width}x{height}')
-
-                # Register cleanup handlers
-                atexit.register(self.cleanup)
-                signal.signal(signal.SIGTERM, lambda s, f: self.cleanup())
-                signal.signal(signal.SIGINT, lambda s, f: self.cleanup())
 
                 return self._display
 
@@ -415,6 +412,9 @@ class PhotoHandler(FileSystemEventHandler):
 
 class InkyPhotoFrame:
     def __init__(self):
+        self._should_quit = threading.Event()
+        self.register_cleanup_handlers()
+
         # Immich api manager
         self.immich_manager = ImmichApiManager()
 
@@ -827,23 +827,26 @@ class InkyPhotoFrame:
             else:
                 img = img.convert('RGB')
 
-        # Smart crop to display ratio
-        img_ratio = img.width / img.height
-        display_ratio = self.width / self.height
+        if SHOULD_CROP:
+            # Smart crop to display ratio
+            img_ratio = img.width / img.height
+            display_ratio = self.width / self.height
 
-        if img_ratio > display_ratio:
-            # Image wider - crop horizontally (keep center)
-            new_width = int(img.height * display_ratio)
-            left = (img.width - new_width) // 2
-            img = img.crop((left, 0, left + new_width, img.height))
+            if img_ratio > display_ratio:
+                # Image wider - crop horizontally (keep center)
+                new_width = int(img.height * display_ratio)
+                left = (img.width - new_width) // 2
+                img = img.crop((left, 0, left + new_width, img.height))
+            else:
+                # Image taller - crop vertically (bias towards top for portraits)
+                new_height = int(img.width / display_ratio)
+                top = (img.height - new_height) // 3
+                img = img.crop((0, top, img.width, top + new_height))
+
+            # Resize to display size
+            img = img.resize((self.width, self.height), Image.Resampling.LANCZOS)
         else:
-            # Image taller - crop vertically (bias towards top for portraits)
-            new_height = int(img.width / display_ratio)
-            top = (img.height - new_height) // 3
-            img = img.crop((0, top, img.width, top + new_height))
-
-        # Resize to display size
-        img = img.resize((self.width, self.height), Image.Resampling.LANCZOS)
+            img = ImageOps.pad(img, (self.width, self.height), Image.Resampling.LANCZOS, color='white')
 
         # Apply color mode processing
         if self.color_mode == 'pimoroni':
@@ -1100,8 +1103,7 @@ class InkyPhotoFrame:
         # if now.hour >= CHANGE_HOUR and last_change.date() < now.date():
         #     return True
 
-        # Every 2 hours after 5 am?
-        if now.hour >= CHANGE_HOUR and last_change <= now - timedelta(hours=2):
+        if now.hour >= CHANGE_HOUR and now - last_change >= timedelta(hours=1):
             return True
         return False
 
@@ -1131,6 +1133,7 @@ class InkyPhotoFrame:
         """Main loop with file watching"""
         logging.info(f'⏰ Daily change time: {CHANGE_HOUR:02d}:00')
         logging.info(f'📁 Watching folder: {PHOTOS_DIR}')
+        logging.info(f'📁 Watching folder: {IMMICH_PHOTOS_DIR}')
         logging.info(f'🗄️ Storage limit: {MAX_PHOTOS} photos (auto-cleanup enabled)')
 
         # Display current or welcome screen
@@ -1145,9 +1148,9 @@ class InkyPhotoFrame:
 
         try:
             # Main loop
-            while True:
+            while not self._should_quit.is_set():
                 # Check every minute
-                time_module.sleep(60)
+                self._should_quit.wait(60)
 
                 # Check for daily change
                 if self.should_change_photo():
@@ -1182,12 +1185,29 @@ class InkyPhotoFrame:
 
         except KeyboardInterrupt:
             logging.info('👋 Stopping photo frame')
-            observer.stop()
+            self._should_quit.set()
         except Exception as e:
             logging.error(f'❌ Error in main loop: {e}')
+            self._should_quit.set()
+        finally:
             observer.stop()
+            self._should_quit.clear()
 
         observer.join()
+
+    def register_cleanup_handlers(self):
+        logging.info('🧹 Registering cleanup handlers')
+        atexit.register(self.dispose)
+        signal.signal(signal.SIGTERM, lambda s, f: self.dispose())
+        signal.signal(signal.SIGINT, lambda s, f: self.dispose())
+
+    def dispose(self):
+        logging.info('🛑 Terminating InkyPhotoFrame.')
+        with self.lock:
+            self.display_manager.cleanup()
+            self._should_quit.set()
+            logging.info('🛑 InkyPhotoFrame loop has been terminated.')
+
 
 if __name__ == '__main__':
     frame = InkyPhotoFrame()
