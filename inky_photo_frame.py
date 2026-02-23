@@ -66,7 +66,7 @@ PHOTOS_DIR = Path('/home/pi/Images')
 IMMICH_PHOTOS_DIR = PHOTOS_DIR.joinpath('immich')
 HISTORY_FILE = Path('/home/pi/.inky_history.json')
 COLOR_MODE_FILE = Path('/home/pi/.inky_color_mode.json')
-CHANGE_HOUR = 7  # Daily change hour (7AM)
+CHANGE_HOUR = 8  # Daily change hour (7AM)
 LOG_FILE = '/home/pi/inky_photo_frame.log'
 MAX_PHOTOS = 1000  # Maximum number of photos to keep (auto-delete oldest)
 VERSION = "1.1.7"
@@ -1097,13 +1097,9 @@ class InkyPhotoFrame:
             return True
 
         # Parse last change time
-        last_change: datetime = datetime.fromisoformat(self.history['last_change'])
+        last_change = datetime.fromisoformat(self.history['last_change'])
 
-        # Check if it's past CHANGE_HOUR and we haven't changed today
-        # if now.hour >= CHANGE_HOUR and last_change.date() < now.date():
-        #     return True
-
-        if now.hour >= CHANGE_HOUR and now - last_change >= timedelta(hours=1):
+        if now.hour >= CHANGE_HOUR and now.hour > last_change.hour:
             return True
         return False
 
