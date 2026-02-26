@@ -1099,7 +1099,19 @@ class InkyPhotoFrame:
         # Parse last change time
         last_change = datetime.fromisoformat(self.history['last_change'])
 
-        if now.hour >= CHANGE_HOUR and now.hour > last_change.hour:
+        current_hour = now.replace(minute=0, second=0, microsecond=0)
+        last_hour = last_change.replace(minute=0, second=0, microsecond=0)
+
+        # Was the last change in the final 10 minutes of its hour? Yes -> Keep showing the same photo
+        last_change_in_final_10 = last_change >= (
+                last_hour + timedelta(minutes=50)
+        )
+
+        if (
+                now.hour >= CHANGE_HOUR and
+                current_hour > last_hour and
+                not last_change_in_final_10
+        ):
             return True
         return False
 
