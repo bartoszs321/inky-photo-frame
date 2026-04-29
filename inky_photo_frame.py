@@ -175,6 +175,7 @@ class ImmichApiManager:
             for deleted_id in deleted_assets_ids:
                 image_path = IMMICH_PHOTOS_DIR.joinpath(deleted_id + ".jpg")
                 image_path.unlink()
+                self._downloaded_images.remove(deleted_id)
 
             for asset_id in new_asset_ids:
                 try:
@@ -182,6 +183,7 @@ class ImmichApiManager:
                     image = Image.open(io.BytesIO(photo_bytes))
                     image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
                     image.save(image_path)
+                    self._downloaded_images.add(asset_id)
                 except Exception as e:
                     logging.error(f'An error occurred downloading asset {asset_id}', e)
             logging.info(f'🎞️ Asset update complete')
