@@ -151,7 +151,7 @@ pip install inky[rpi,example-depends]
 
 # STEP 8: Install additional Python packages
 print_info "STEP 8: Installing Python dependencies..."
-pip install pillow pillow-heif watchdog lgpio RPi.GPIO gpiozero pydantic urllib3 python_dateutil
+pip install pillow pillow-heif watchdog lgpio RPi.GPIO gpiozero pydantic urllib3 python_dateutil opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-logging opentelemetry-exporter-otlp
 
 # STEP 9: Create installation directory
 print_info "STEP 9: Creating application directory..."
@@ -246,6 +246,8 @@ echo "$immich_album_id" | sudo tee -a "$IMMICH_CONFIG_FILE" > /dev/null
 
 print_info "Saving immich configuration"
 
+read -p "Enter the OTEL_EXPORTER_OTLP_ENDPOINT env value: " otlp_endpoint
+
 # Restart Samba
 print_info "Restarting SMB service..."
 sudo systemctl restart smbd
@@ -263,6 +265,9 @@ Type=simple
 User=pi
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=/home/pi/.virtualenvs/pimoroni/bin:/usr/bin:/bin"
+Envrionment="OTEL_RESOURCE_ATTRIBUTES=service.name=inky-photo-frame"
+Envrionment="OTEL_EXPORTER_OTLP_ENDPOINT=$otlp_endpoint"
+Envrionment="OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf"
 ExecStart=/home/pi/.virtualenvs/pimoroni/bin/python $INSTALL_DIR/inky_photo_frame.py
 Restart=always
 RestartSec=10

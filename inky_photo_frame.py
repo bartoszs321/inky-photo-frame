@@ -43,14 +43,19 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import threading
-from threading import Timer
 import socket
-import subprocess
 import atexit
 import signal
 from functools import wraps
 from os import listdir
 from os.path import isfile, join
+
+from opentelemetry._logs import set_logger_provider
+from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
+from opentelemetry.sdk.resources import Resource
+
 
 import immich_api_client
 
@@ -114,6 +119,17 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+logger_provider = LoggerProvider(
+    resource=Resource.create(
+        {
+            "service.name": "inky-photo-frame",
+        }
+    ),
+)
+set_logger_provider(logger_provider)
+exporter = OTLPLogExporter()
+logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter))
+handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
 # ============================================================================
 # Immich API MANAGER - Fetches photos from a specified album and saves them to the photo dir
@@ -1140,6 +1156,7 @@ class InkyPhotoFrame:
             self.change_photo()
 
     def run(self):
+        logging.getLogger().addHandler(handler)
         """Main loop with file watching"""
         logging.info(f'⏰ Daily change time: {CHANGE_HOUR:02d}:00')
         logging.info(f'📁 Watching folder: {PHOTOS_DIR}')
@@ -1202,6 +1219,7 @@ class InkyPhotoFrame:
         finally:
             observer.stop()
             self._should_quit.clear()
+            logger_provider.shutdown()
 
         observer.join()
 
