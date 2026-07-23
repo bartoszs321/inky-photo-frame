@@ -265,9 +265,9 @@ Type=simple
 User=pi
 WorkingDirectory=$INSTALL_DIR
 Environment="PATH=/home/pi/.virtualenvs/pimoroni/bin:/usr/bin:/bin"
-Envrionment="OTEL_RESOURCE_ATTRIBUTES=service.name=inky-photo-frame"
-Envrionment="OTEL_EXPORTER_OTLP_ENDPOINT=$otlp_endpoint"
-Envrionment="OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf"
+Environment="OTEL_RESOURCE_ATTRIBUTES=service.name=inky-photo-frame"
+Environment="OTEL_EXPORTER_OTLP_ENDPOINT=$otlp_endpoint"
+Environment="OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf"
 ExecStart=/home/pi/.virtualenvs/pimoroni/bin/python $INSTALL_DIR/inky_photo_frame.py
 Restart=always
 RestartSec=10
