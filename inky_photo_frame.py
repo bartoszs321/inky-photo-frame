@@ -30,6 +30,8 @@ import io
 import os
 from uuid import UUID
 
+from immich_api_client import MetadataSearchDto, SearchResponseDto, AssetResponseDto
+
 # Set environment variable to skip GPIO check
 os.environ['INKY_SKIP_GPIO_CHECK'] = '1'
 import json
@@ -137,7 +139,7 @@ handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
 
 class ImmichApiManager:
     _api_client = None
-    _albums_api = None
+    _search_api = None
     _assets_api = None
     _display_album_id = None
     _downloaded_images = None
@@ -152,7 +154,7 @@ class ImmichApiManager:
         config.api_key["api_key"] = api_key
         self._api_client = immich_api_client.ApiClient(config)
 
-        self._albums_api = immich_api_client.AlbumsApi(self._api_client)
+        self._search_api = immich_api_client.SearchApi(self._api_client)
         self._asset_api = immich_api_client.AssetsApi(self._api_client)
 
         # list all images inside immich dir to get uuids
@@ -180,9 +182,16 @@ class ImmichApiManager:
         try:
             logging.info(f'🎞️ Fetching asset list from Immich album: {self._display_album_id}')
 
-            album_info = self._albums_api.get_album_info(UUID(self._display_album_id), without_assets=False)
+            metadata_query:  MetadataSearchDto = MetadataSearchDto(album_ids=[UUID(self._display_album_id)])
 
-            album_asset_ids = set([a.id for a in album_info.assets])
+            search_response: SearchResponseDto = self._search_api.search_assets(metadata_search_dto=metadata_query)
+            search_results_assets: list[AssetResponseDto] = search_response.assets.items
+
+            while search_response.assets.next_page is not None:
+                search_response: SearchResponseDto = self._search_api.search_assets(metadata_search_dto=metadata_query)
+                search_results_assets = search_results_assets + search_response.assets.items
+
+            album_asset_ids = set([a.id for a in search_results_assets])
             new_asset_ids = album_asset_ids.difference(self._downloaded_images)
             deleted_assets_ids = self._downloaded_images.difference(album_asset_ids)
             logging.info(f'🎞️ Found {len(new_asset_ids)} assets to download')
