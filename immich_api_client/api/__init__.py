@@ -7,6 +7,7 @@ from immich_api_client.api.albums_api import AlbumsApi
 from immich_api_client.api.assets_api import AssetsApi
 from immich_api_client.api.authentication_api import AuthenticationApi
 from immich_api_client.api.authentication_admin_api import AuthenticationAdminApi
+from immich_api_client.api.database_backups_admin_api import DatabaseBackupsAdminApi
 from immich_api_client.api.deprecated_api import DeprecatedApi
 from immich_api_client.api.download_api import DownloadApi
 from immich_api_client.api.duplicates_api import DuplicatesApi
