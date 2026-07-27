@@ -158,7 +158,7 @@ class ImmichApiManager:
         self._asset_api = immich_api_client.AssetsApi(self._api_client)
 
         # list all images inside immich dir to get uuids
-        image_files = [Path(f).stem for f in listdir(IMMICH_PHOTOS_DIR) if isfile(join(IMMICH_PHOTOS_DIR, f)) and f.endswith('.jpg')]
+        image_files: list[UUID] = [UUID(Path(f).stem) for f in listdir(IMMICH_PHOTOS_DIR) if isfile(join(IMMICH_PHOTOS_DIR, f)) and f.endswith('.jpg')]
 
         logging.info(f'🎞️ Found {len(image_files)} existing images')
 
@@ -191,22 +191,22 @@ class ImmichApiManager:
                 search_response: SearchResponseDto = self._search_api.search_assets(metadata_search_dto=metadata_query)
                 search_results_assets = search_results_assets + search_response.assets.items
 
-            album_asset_ids = set([a.id for a in search_results_assets])
-            new_asset_ids = album_asset_ids.difference(self._downloaded_images)
-            deleted_assets_ids = self._downloaded_images.difference(album_asset_ids)
+            album_asset_ids: set[UUID] = set([a.id for a in search_results_assets])
+            new_asset_ids: set[UUID] = album_asset_ids.difference(self._downloaded_images)
+            deleted_assets_ids: set[UUID] = self._downloaded_images.difference(album_asset_ids)
             logging.info(f'🎞️ Found {len(new_asset_ids)} assets to download')
             logging.info(f'🎞️ Found {len(deleted_assets_ids)} assets to delete')
 
             for deleted_id in deleted_assets_ids:
-                image_path = IMMICH_PHOTOS_DIR.joinpath(deleted_id + ".jpg")
+                image_path = IMMICH_PHOTOS_DIR.joinpath(str(deleted_id) + ".jpg")
                 image_path.unlink()
                 self._downloaded_images.remove(deleted_id)
 
             for asset_id in new_asset_ids:
                 try:
-                    photo_bytes = self._asset_api.view_asset(UUID(asset_id), size=immich_api_client.AssetMediaSize.PREVIEW)
+                    photo_bytes = self._asset_api.view_asset(asset_id, size=immich_api_client.AssetMediaSize.PREVIEW)
                     image = Image.open(io.BytesIO(photo_bytes))
-                    image_path = IMMICH_PHOTOS_DIR.joinpath(asset_id + ".jpg")
+                    image_path = IMMICH_PHOTOS_DIR.joinpath(str(asset_id) + ".jpg")
                     image.save(image_path)
                     self._downloaded_images.add(asset_id)
                 except Exception as e:
@@ -736,7 +736,10 @@ class InkyPhotoFrame:
         """Update pending list with new photos"""
         with self.lock:
             # Check if new photos available in selected immich album
-            self.immich_manager.update_downloaded_assets()
+            try:
+                self.immich_manager.update_downloaded_assets()
+            except Exception as ex:
+                logging.error("Failed to update Immich downloaded assets:", ex)
 
             all_photos = self.get_all_photos()
 
